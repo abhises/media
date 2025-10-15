@@ -19,7 +19,7 @@ async function createTables() {
       `
       CREATE TABLE IF NOT EXISTS media_audit (
         id SERIAL PRIMARY KEY,
-        media_id INTEGER NOT NULL,
+        media_id VARCHAR(100) NOT NULL,
         occurred_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         actor_user_id INTEGER,
         action VARCHAR(100) NOT NULL,
