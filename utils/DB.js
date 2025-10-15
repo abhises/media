@@ -4,7 +4,6 @@ import dotenv from "dotenv";
 const { Pool } = pkg;
 dotenv.config();
 
-
 export default class DB {
   constructor() {
     this.connections = {};
@@ -83,9 +82,12 @@ export default class DB {
     const values = Object.values(data);
 
     const setClause = keys.map((key, i) => `${key}=$${i + 1}`).join(", ");
-    const whereWithShiftedPlaceholders = where.replace(/\$(\d+)/g, (match, p1) => {
-      return `$${parseInt(p1) + keys.length}`;
-    });
+    const whereWithShiftedPlaceholders = where.replace(
+      /\$(\d+)/g,
+      (match, p1) => {
+        return `$${parseInt(p1) + keys.length}`;
+      }
+    );
 
     const sql = `UPDATE ${table} SET ${setClause} WHERE ${whereWithShiftedPlaceholders} RETURNING *`;
     const result = await this.query(name, sql, [...values, ...params]);
@@ -107,22 +109,33 @@ export default class DB {
   }
 
   async withTransaction(callback, name = "default") {
-  await this.ensureConnected(name);
-  const client = await this.connections[name].connect();
-  try {
-    await client.query("BEGIN");
-    const result = await callback(client);
-    await client.query("COMMIT");
-    return result;
-  } catch (err) {
-    await client.query("ROLLBACK");
-    this.errors.push(err.message);
-    throw err;
-  } finally {
-    client.release();
-  }
-}
+    await this.ensureConnected(name);
+    const client = await this.connections[name].connect();
+    const wrappedClient = {
+      query: (...args) => client.query(...args),
+      getRow: async (sql, params) => {
+        const { rows } = await client.query(sql, params);
+        return rows[0] || null;
+      },
+      getAll: async (sql, params) => {
+        const { rows } = await client.query(sql, params);
+        return rows;
+      },
+    };
 
+    try {
+      await client.query("BEGIN");
+      const result = await callback(wrappedClient);
+      await client.query("COMMIT");
+      return result;
+    } catch (err) {
+      await client.query("ROLLBACK");
+      this.errors.push(err.message);
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
 
   async closeAll() {
     for (const name in this.connections) {

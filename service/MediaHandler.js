@@ -2,10 +2,15 @@
 import crypto from "crypto";
 import SafeUtils from "../utils/SafeUtils.js";
 import ErrorHandler from "../utils/ErrorHandler.js";
-import { ValidationError,ConflictError,NotFoundError,StateTransitionError } from "../utils/Error_handler.js";
+import {
+  ValidationError,
+  ConflictError,
+  NotFoundError,
+  StateTransitionError,
+} from "../utils/Error_handler.js";
 
 export default class MediaHandler {
-  constructor({ db,log, indexer, clock, uuid, config }) {
+  constructor({ db, log, indexer, clock, uuid, config }) {
     this.db = db;
     this.log = log;
     this.indexer = indexer ?? {
@@ -258,30 +263,42 @@ export default class MediaHandler {
    *   - Normalize arrays (tags, performer lists).
    */
   sanitizeValidateFirst(payload, methodKey) {
-     if (!payload || typeof payload !== 'object') throw new ValidationError('Payload must be an object');
- 
-     if (methodKey) {
-       const required = this.METHOD_RULES[methodKey];
-       if (!required) throw new ValidationError(`Unknown handler rules for '${methodKey}'`);
-       for (const f of required) {
-         if (!(f in payload)) throw new ValidationError(`Missing required field '${f}'`);
-       }
-     }
- 
-     const clean = {};
-     for (const [k, v] of Object.entries(payload)) {
-       const spec = this.FIELD_SPEC[k];
-       if (!spec) throw new ValidationError(`Unexpected field '${k}'`);
-       clean[k] = this._coerceByRule(k, v, spec.rule);
-     }
- 
-     // Normalize arrays
-     if ('tags' in clean) clean.tags = this.normalizeTags(Array.isArray(clean.tags) ? clean.tags : []);
-     if ('coperformers' in clean) clean.coperformers = this.normalizeCoPerformers(Array.isArray(clean.coperformers) ? clean.coperformers : []);
-     if ('performerIds' in clean) clean.performerIds = this.normalizeCoPerformers(Array.isArray(clean.performerIds) ? clean.performerIds : []);
- 
-     return clean;
-   }
+    if (!payload || typeof payload !== "object")
+      throw new ValidationError("Payload must be an object");
+
+    if (methodKey) {
+      const required = this.METHOD_RULES[methodKey];
+      if (!required)
+        throw new ValidationError(`Unknown handler rules for '${methodKey}'`);
+      for (const f of required) {
+        if (!(f in payload))
+          throw new ValidationError(`Missing required field '${f}'`);
+      }
+    }
+
+    const clean = {};
+    for (const [k, v] of Object.entries(payload)) {
+      const spec = this.FIELD_SPEC[k];
+      if (!spec) throw new ValidationError(`Unexpected field '${k}'`);
+      clean[k] = this._coerceByRule(k, v, spec.rule);
+    }
+
+    // Normalize arrays
+    if ("tags" in clean)
+      clean.tags = this.normalizeTags(
+        Array.isArray(clean.tags) ? clean.tags : []
+      );
+    if ("coperformers" in clean)
+      clean.coperformers = this.normalizeCoPerformers(
+        Array.isArray(clean.coperformers) ? clean.coperformers : []
+      );
+    if ("performerIds" in clean)
+      clean.performerIds = this.normalizeCoPerformers(
+        Array.isArray(clean.performerIds) ? clean.performerIds : []
+      );
+
+    return clean;
+  }
 
   /**
    * _coerceByRule(field, value, rule)
@@ -535,7 +552,7 @@ export default class MediaHandler {
       });
       await this.setCoPerformers({
         media_id,
-        expectedVersion: 1,
+        expectedVersion: 2,
         performerIds: clean.coperformers,
         actorUserId,
       });
@@ -555,7 +572,7 @@ export default class MediaHandler {
       });
       await this.attachPrimaryAsset({
         media_id,
-        expectedVersion: 1,
+        expectedVersion: 3,
         ...clean,
         actorUserId,
       });
@@ -566,7 +583,7 @@ export default class MediaHandler {
       });
       await this.setPoster({
         media_id,
-        expectedVersion: 1,
+        expectedVersion: 4,
         poster_url: clean.poster_url,
         actorUserId,
       });
@@ -583,7 +600,7 @@ export default class MediaHandler {
       });
       await this.applyBlurControls({
         media_id,
-        expectedVersion: 1,
+        expectedVersion: 5,
         placeholder_lock: clean.placeholder_lock,
         blurred_lock: clean.blurred_lock,
         blurred_value_px: clean.blurred_value_px,
@@ -598,7 +615,7 @@ export default class MediaHandler {
       });
       await this.setOwnership({
         media_id,
-        expectedVersion: 1,
+        expectedVersion: 6,
         new_owner_user_id: clean.new_owner_user_id || clean.owner_user_id,
         actorUserId,
       });
@@ -1136,6 +1153,13 @@ export default class MediaHandler {
       if (!row) throw new NotFoundError("Media not found");
       if (clean.expectedVersion == null)
         throw new ConflictError("expectedVersion required");
+      console.log(
+        "Expecting version:",
+        clean.expectedVersion,
+        "Current version:",
+        row.version
+      );
+
       this.expectVersion(row, clean.expectedVersion);
 
       const set = [];
@@ -1215,6 +1239,13 @@ export default class MediaHandler {
       if (!row) throw new NotFoundError("Media not found");
       if (clean.expectedVersion == null)
         throw new ConflictError("expectedVersion required");
+       console.log(
+        "Expecting version:",
+        clean.expectedVersion,
+        "Current version:",
+        row.version
+      );
+
       this.expectVersion(row, clean.expectedVersion);
 
       const now = this.clock.now();
@@ -1421,66 +1452,71 @@ export default class MediaHandler {
    *   [ ] load row; expectVersion
    *   [ ] delete old, insert new; audit; ES upsert
    */
- async setTags(payload) {
-  // Sanitize input
-  const clean = this.sanitizeValidateFirst(payload, null);
-  this.log?.info?.("setTags:start", {
-    mediaId: clean.media_id,
-    count: Array.isArray(clean.tags) ? clean.tags.length : 0,
-    actorUserId: payload.actorUserId,
-  });
-
-  return await this.db.withTransaction(async (client) => {
-    // Use the DB wrapper's getRow helper, not client.getRow
-    const row = await this.db.getRow(
-      client,
-      `SELECT media_id, version, updated_by_user_id 
-       FROM media 
-       WHERE media_id=$1 AND is_deleted=false`,
-      [clean.media_id]
-    );
-
-    if (!row) throw new NotFoundError("Media not found");
-    if (clean.expectedVersion == null)
-      throw new ConflictError("expectedVersion required");
-
-    this.expectVersion(row, clean.expectedVersion);
-
-    // Clear old tags
-    await client.query(`DELETE FROM media_tags WHERE media_id=$1`, [
-      clean.media_id,
-    ]);
-
-    // Insert new tags
-    if (clean.tags?.length) {
-      const insertQuery = `INSERT INTO media_tags (media_id, tag) VALUES ($1,$2) ON CONFLICT DO NOTHING`;
-      for (const tag of clean.tags) {
-        await client.query(insertQuery, [clean.media_id, tag]);
-      }
-    }
-
-    // Update media version
-    const now = this.clock.now();
-    const newVersion = (row.version || 0) + 1;
-    await client.query(
-      `UPDATE media 
-       SET version=$2, last_updated=$3, updated_by_user_id=$4 
-       WHERE media_id=$1`,
-      [clean.media_id, newVersion, now, payload.actorUserId || row.updated_by_user_id]
-    );
-
-    // Write audit log
-    await this.writeAudit(client, {
+  async setTags(payload) {
+    // Sanitize input
+    const clean = this.sanitizeValidateFirst(payload, null);
+    this.log?.info?.("setTags:start", {
       mediaId: clean.media_id,
+      count: Array.isArray(clean.tags) ? clean.tags.length : 0,
       actorUserId: payload.actorUserId,
-      action: this.ACTION.TAGS_REPLACE,
-      beforeJson: { version: row.version },
-      afterJson: { version: newVersion, tags: clean.tags },
     });
 
-    return { media_id: clean.media_id, version: newVersion };
-  });
-}
+    return await this.db.withTransaction(async (client) => {
+      // Use the DB wrapper's getRow helper, not client.getRow
+      const row = await this.db.getRow(
+        client,
+        `SELECT media_id, version, updated_by_user_id 
+       FROM media 
+       WHERE media_id=$1 AND is_deleted=false`,
+        [clean.media_id]
+      );
+
+      if (!row) throw new NotFoundError("Media not found");
+      if (clean.expectedVersion == null)
+        throw new ConflictError("expectedVersion required");
+
+      this.expectVersion(row, clean.expectedVersion);
+
+      // Clear old tags
+      await client.query(`DELETE FROM media_tags WHERE media_id=$1`, [
+        clean.media_id,
+      ]);
+
+      // Insert new tags
+      if (clean.tags?.length) {
+        const insertQuery = `INSERT INTO media_tags (media_id, tag) VALUES ($1,$2) ON CONFLICT DO NOTHING`;
+        for (const tag of clean.tags) {
+          await client.query(insertQuery, [clean.media_id, tag]);
+        }
+      }
+
+      // Update media version
+      const now = this.clock.now();
+      const newVersion = (row.version || 0) + 1;
+      await client.query(
+        `UPDATE media 
+       SET version=$2, last_updated=$3, updated_by_user_id=$4 
+       WHERE media_id=$1`,
+        [
+          clean.media_id,
+          newVersion,
+          now,
+          payload.actorUserId || row.updated_by_user_id,
+        ]
+      );
+
+      // Write audit log
+      await this.writeAudit(client, {
+        mediaId: clean.media_id,
+        actorUserId: payload.actorUserId,
+        action: this.ACTION.TAGS_REPLACE,
+        beforeJson: { version: row.version },
+        afterJson: { version: newVersion, tags: clean.tags },
+      });
+
+      return { media_id: clean.media_id, version: newVersion };
+    });
+  }
 
   /**
    * addTag({...})
@@ -1617,73 +1653,87 @@ export default class MediaHandler {
    *   [ ] load row; expectVersion
    *   [ ] delete old; insert new; audit; ES upsert
    */
- async setCoPerformers(payload) {
-  const clean = this.sanitizeValidateFirst(payload, null);
-  this.log?.info?.("setCoPerformers:start", {
-    mediaId: clean.media_id,
-    count: Array.isArray(clean.performerIds) ? clean.performerIds.length : 0,
-    actorUserId: payload.actorUserId,
-  });
+  async setCoPerformers(payload) {
+    const clean = this.sanitizeValidateFirst(payload, null);
+    this.log?.info?.("setCoPerformers:start", {
+      mediaId: clean.media_id,
+      count: Array.isArray(clean.performerIds) ? clean.performerIds.length : 0,
+      actorUserId: payload.actorUserId,
+    });
 
-  return await this.db.withTransaction(async (client) => {
-    // Use your DB wrapper to fetch single row
-    const row = await this.db.getRow(
-      client,
-      `SELECT media_id, version, updated_by_user_id 
+    return await this.db
+      .withTransaction(async (client) => {
+        // Use your DB wrapper to fetch single row
+        const row = await this.db.getRow(
+          client,
+          `SELECT media_id, version, updated_by_user_id 
        FROM media 
        WHERE media_id=$1 AND is_deleted=false`,
-      [clean.media_id]
-    );
-    if (!row) throw new NotFoundError("Media not found");
+          [clean.media_id]
+        );
+        if (!row) throw new NotFoundError("Media not found");
 
-    if (clean.expectedVersion == null)
-      throw new ConflictError("expectedVersion required");
+        if (clean.expectedVersion == null)
+          throw new ConflictError("expectedVersion required");
+        console.log(
+          "Expecting version:",
+          clean.expectedVersion,
+          "Current version:",
+          row.version
+        );
+        this.expectVersion(row, clean.expectedVersion);
 
-    this.expectVersion(row, clean.expectedVersion);
+        // Delete existing co-performers
+        await client.query(`DELETE FROM media_coperformers WHERE media_id=$1`, [
+          clean.media_id,
+        ]);
 
-    // Delete existing co-performers
-    await client.query(`DELETE FROM media_coperformers WHERE media_id=$1`, [
-      clean.media_id,
-    ]);
+        // Insert new co-performers
+        if (
+          Array.isArray(clean.performerIds) &&
+          clean.performerIds.length > 0
+        ) {
+          const insertQuery =
+            "INSERT INTO media_coperformers (media_id, performer_id) VALUES ($1, $2) ON CONFLICT DO NOTHING";
+          for (const performerId of clean.performerIds) {
+            await client.query(insertQuery, [clean.media_id, performerId]);
+          }
+        }
 
-    // Insert new co-performers
-    if (Array.isArray(clean.performerIds) && clean.performerIds.length > 0) {
-      const insertQuery =
-        "INSERT INTO media_coperformers (media_id, performer_id) VALUES ($1, $2) ON CONFLICT DO NOTHING";
-      for (const performerId of clean.performerIds) {
-        await client.query(insertQuery, [clean.media_id, performerId]);
-      }
-    }
+        // Update media version
+        const now = this.clock.now();
+        const newVersion = (row.version || 0) + 1;
+        await client.query(
+          `UPDATE media SET version=$2, last_updated=$3, updated_by_user_id=$4 WHERE media_id=$1`,
+          [
+            clean.media_id,
+            newVersion,
+            now,
+            payload.actorUserId || row.updated_by_user_id,
+          ]
+        );
 
-    // Update media version
-    const now = this.clock.now();
-    const newVersion = (row.version || 0) + 1;
-    await client.query(
-      `UPDATE media SET version=$2, last_updated=$3, updated_by_user_id=$4 WHERE media_id=$1`,
-      [clean.media_id, newVersion, now, payload.actorUserId || row.updated_by_user_id]
-    );
+        // Audit log
+        await this.writeAudit(client, {
+          mediaId: clean.media_id,
+          actorUserId: payload.actorUserId,
+          action: this.ACTION.COPERFORMERS_REPLACE,
+          beforeJson: { version: row.version },
+          afterJson: { version: newVersion, coperformers: clean.performerIds },
+        });
 
-    // Audit log
-    await this.writeAudit(client, {
-      mediaId: clean.media_id,
-      actorUserId: payload.actorUserId,
-      action: this.ACTION.COPERFORMERS_REPLACE,
-      beforeJson: { version: row.version },
-      afterJson: { version: newVersion, coperformers: clean.performerIds },
-    });
-
-    return { media_id: clean.media_id };
-  }).then(async (res) => {
-    // Optional: index in Elasticsearch
-    await this.indexer.upsert(clean.media_id);
-    this.log?.info?.("setCoPerformers:end", {
-      mediaId: clean.media_id,
-      actorUserId: payload.actorUserId,
-    });
-    return res;
-  });
-}
-
+        return { media_id: clean.media_id };
+      })
+      .then(async (res) => {
+        // Optional: index in Elasticsearch
+        await this.indexer.upsert(clean.media_id);
+        this.log?.info?.("setCoPerformers:end", {
+          mediaId: clean.media_id,
+          actorUserId: payload.actorUserId,
+        });
+        return res;
+      });
+  }
 
   /**
    * setOwnership({...})
