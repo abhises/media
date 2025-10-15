@@ -1,0 +1,21 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: media-db
+    restart: always
+    environment:
+      POSTGRES_DB: media
+      POSTGRES_USER: media
+      POSTGRES_PASSWORD: media
+    ports:
+      - "5432:5432"
+    volumes:
+      # Persistent data
+      - db_data:/var/lib/postgresql/data
+      # Init scripts (SQL or Shell files)
+      - ./init:/docker-entrypoint-initdb.d
+
+volumes:
+  db_data:
