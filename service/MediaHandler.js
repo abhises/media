@@ -449,7 +449,7 @@ export default class MediaHandler {
       if (atom.endsWith(":https")) {
         const field = atom.replace(":https", "");
         if (!row[field]) throw new ValidationError(`${field} required`);
-        if (!SafeUtils.isHTTPSUrl(row[field]))
+        if (!SafeUtils.sanitizeUrl(row[field]))
           throw new ValidationError(`${field} must be https`);
         continue;
       }
@@ -480,6 +480,7 @@ export default class MediaHandler {
    *   - skip empty; clip tag length; cap to maxTagCount.
    */
   normalizeTags(tags) {
+    console.log("at the top of normalizing tags", tags);
     const out = [];
     const seen = new Set();
     for (const t of tags) {
@@ -491,6 +492,7 @@ export default class MediaHandler {
       seen.add(clipped);
       if (out.length >= this.config.maxTagCount) break;
     }
+    console.log("normalized tags", out);
     return out;
   }
 
@@ -1537,7 +1539,8 @@ export default class MediaHandler {
    */
   async addTag(payload) {
     const clean = this.sanitizeValidateFirst(payload, null); // FIRST LINE
-    const tag = this.normalizeTags([payload.tag ?? ""])[0];
+    console.log("clean inside addTag", clean);
+    const tag = this.normalizeTags(payload.tags ?? [])[0];
     if (!tag) throw new ValidationError("Invalid tag");
     this.log?.info?.("addTag:start", {
       mediaId: clean.media_id,
@@ -1579,14 +1582,10 @@ export default class MediaHandler {
         beforeJson: { version: row.version },
         afterJson: { version: newVersion, tag },
       });
-    });
 
-    await this.indexer.upsert(clean.media_id); // Implement elasticsearch here
-    this.log?.info?.("addTag:end", {
-      mediaId: clean.media_id,
-      actorUserId: payload.actorUserId,
+      // ✅ return inside transaction
+      return { media_id: clean.media_id, version: newVersion, tag };
     });
-    return { media_id: clean.media_id };
   }
 
   /**
@@ -1600,7 +1599,7 @@ export default class MediaHandler {
    */
   async removeTag(payload) {
     const clean = this.sanitizeValidateFirst(payload, null); // FIRST LINE
-    const tag = this.normalizeTags([payload.tag ?? ""])[0];
+    const tag = this.normalizeTags(payload.tags ?? [])[0];
     if (!tag) throw new ValidationError("Invalid tag");
     this.log?.info?.("removeTag:start", {
       mediaId: clean.media_id,
@@ -1679,6 +1678,7 @@ export default class MediaHandler {
        WHERE media_id=$1 AND is_deleted=false`,
           [clean.media_id]
         );
+        console.log("row inside setCoPerformers", row);
         if (!row) throw new NotFoundError("Media not found");
 
         if (clean.expectedVersion == null)

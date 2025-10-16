@@ -1,8 +1,8 @@
-import MediaService from "../service/MediaHandler.js";
-import DB from "../utils/DB.js"; // Connects to your DB
+import MediaService from "../../service/MediaHandler.js";
+import DB from "../../utils/DB.js"; // Connects to your DB
 
-export default async function handleScheduleMediaItem() {
-  console.log("Starting test for handleScheduleMediaItem...");
+export default async function testAttachPrimaryAsset() {
+  console.log("Starting test for attachPrimaryAsset...");
 
   // Real or mock DB instance
   const db = new DB();
@@ -19,18 +19,25 @@ export default async function handleScheduleMediaItem() {
   service.log = log;
 
   // ---------------------------------
-  // ⚙️ Step 1: Make sure a media item exists in DB
+  // ⚙️ Step 1: Ensure a media item exists in DB
   // (You can reuse handleAddMediaItem or insert one manually)
   // ---------------------------------
-  const existingMediaId = "3d33b6c5-9497-435c-b410-f694f9534746"; // Replace with a real existing media_id
+  const existingMediaId = "c8239aea-5a4a-4464-9f73-446d45e2f114"; // Replace with a real existing media_id
 
   // ---------------------------------
-  // ⚙️ Step 2: Prepare payload for scheduling
+  // ⚙️ Step 2: Prepare payload for attaching primary asset
   // ---------------------------------
   const payload = {
     media_id: existingMediaId,
-    expectedVersion: 6, // Replace with actual version from DB
-    publish_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // schedule for tomorrow
+    expectedVersion: 6, // Replace with the actual version from DB
+    asset_url: "http://example.com/video.mp4",
+    file_extension: "mp4",
+    file_name: "video.mp4",
+    file_size_bytes: 10485760,
+    duration_seconds: 120,
+    video_width: 1920,
+    video_height: 1080,
+    pending_conversion: false,
     actorUserId: 99,
   };
 
@@ -38,7 +45,7 @@ export default async function handleScheduleMediaItem() {
   // ⚙️ Step 3: Run the method
   // ---------------------------------
   try {
-    const result = await service.handleScheduleMediaItem(payload);
+    const result = await service.attachPrimaryAsset(payload);
     console.log("✅ Test finished successfully:");
     console.log(result);
   } catch (err) {
@@ -47,4 +54,4 @@ export default async function handleScheduleMediaItem() {
 }
 
 // Run test directly
-handleScheduleMediaItem();
+testAttachPrimaryAsset();

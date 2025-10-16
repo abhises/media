@@ -22,7 +22,8 @@
     "xtend": "^4.0.2"
   },
   "scripts": {
-    "test": "node test/index.js",
+    "test": "node test/first/index.js",
+    "test:second": "node test/second/index.js",
     "table:create": "node db/scripts/createTables.js",
     "table:drop": "node db/scripts/deleteTables.js"
   },

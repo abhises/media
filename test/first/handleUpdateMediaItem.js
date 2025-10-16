@@ -1,5 +1,5 @@
-import MediaService from "../service/MediaHandler.js";
-import DB from "../utils/DB.js"; // Make sure this connects to your real DB
+import MediaService from "../../service/MediaHandler.js";
+import DB from "../../utils/DB.js"; // Make sure this connects to your real DB
 
 export default async function handleUpdateMediaItem() {
   console.log("Starting test for handleUpdateMediaItem...");
