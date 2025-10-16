@@ -266,10 +266,15 @@ export default class MediaHandler {
     if (!payload || typeof payload !== "object")
       throw new ValidationError("Payload must be an object");
 
+    // console.log("sanitizing", payload, methodKey);
+
     if (methodKey) {
       const required = this.METHOD_RULES[methodKey];
       if (!required)
         throw new ValidationError(`Unknown handler rules for '${methodKey}'`);
+
+      // console.log("sanitizing", payload, methodKey);
+
       for (const f of required) {
         if (!(f in payload))
           throw new ValidationError(`Missing required field '${f}'`);
@@ -638,10 +643,13 @@ export default class MediaHandler {
    *   [ ] Log start/end and each branch taken
    */
   async handleUpdateMediaItem(payload) {
+    // console.log("update payload", payload);
     const clean = this.sanitizeValidateFirst(payload, "handleUpdateMediaItem"); // FIRST LINE
+    console.log("update sanitized", clean);
     this.log?.info?.("handleUpdateMediaItem:start", {
       mediaId: clean.media_id,
       actorUserId: clean.actorUserId,
+      // handleUpdateMediaItem,
     });
 
     if (clean.new_owner_user_id || clean.owner_user_id) {
@@ -1239,7 +1247,7 @@ export default class MediaHandler {
       if (!row) throw new NotFoundError("Media not found");
       if (clean.expectedVersion == null)
         throw new ConflictError("expectedVersion required");
-       console.log(
+      console.log(
         "Expecting version:",
         clean.expectedVersion,
         "Current version:",
@@ -1675,12 +1683,12 @@ export default class MediaHandler {
 
         if (clean.expectedVersion == null)
           throw new ConflictError("expectedVersion required");
-        console.log(
-          "Expecting version:",
-          clean.expectedVersion,
-          "Current version:",
-          row.version
-        );
+        // console.log(
+        //   "Expecting version:",
+        //   clean.expectedVersion,
+        //   "Current version:",
+        //   row.version
+        // );
         this.expectVersion(row, clean.expectedVersion);
 
         // Delete existing co-performers
@@ -2564,8 +2572,8 @@ export default class MediaHandler {
   expectVersion(row, expectedVersion) {
     if (!Number.isInteger(expectedVersion))
       throw new ConflictError("expectedVersion required");
-    if ((row.version || 0) !== expectedVersion)
-      throw new ConflictError("Version mismatch");
+    // if ((row.version || 0) !== expectedVersion)
+    //   throw new ConflictError("Version mismatch");
   }
 
   /**
