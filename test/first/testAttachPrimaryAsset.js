@@ -30,7 +30,7 @@ export default async function testAttachPrimaryAsset() {
   const payload = {
     media_id: existingMediaId,
     expectedVersion: 6, // Replace with the actual version from DB
-    asset_url: "http://example.com/video.mp4",
+    asset_url: "http://example.com/testing/manytimes/video.mp4",
     file_extension: "mp4",
     file_name: "video.mp4",
     file_size_bytes: 10485760,

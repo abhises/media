@@ -30,7 +30,7 @@ export default async function testSetPoster() {
   const payload = {
     media_id: existingMediaId,
     expectedVersion: 6, // Replace with the actual version from DB
-    poster_url: "http://example.com/poster.jpg",
+    poster_url: "http://example.com/updatedposter.jpg",
     actorUserId: 99,
   };
 

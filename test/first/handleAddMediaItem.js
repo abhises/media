@@ -20,7 +20,7 @@ export default async function handleAddMediaItem() {
   // Test payload
   const payload = {
     tags: ["rag1", "rag2"],
-    coperformers: [1, 2],
+    coperformers: ["add", "ab"],
     asset_url: "http://asset.url",
     poster_url: "http://poster.url",
     placeholder_lock: true,

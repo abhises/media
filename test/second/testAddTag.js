@@ -21,7 +21,7 @@ export default async function testAddTag() {
   // ---------------------------------
   // ⚙️ Step 1: Ensure a media record exists in your DB
   // ---------------------------------
-  const existingMediaId = "5d9f1333-bd81-4e20-a3eb-5840e9a68a60"; // Replace with a real media_id
+  const existingMediaId = "test123"; // Replace with a real media_id
 
   // ---------------------------------
   // ⚙️ Step 2: Prepare payload

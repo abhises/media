@@ -480,7 +480,7 @@ export default class MediaHandler {
    *   - skip empty; clip tag length; cap to maxTagCount.
    */
   normalizeTags(tags) {
-    console.log("at the top of normalizing tags", tags);
+    // console.log("at the top of normalizing tags", tags);
     const out = [];
     const seen = new Set();
     for (const t of tags) {
@@ -492,7 +492,7 @@ export default class MediaHandler {
       seen.add(clipped);
       if (out.length >= this.config.maxTagCount) break;
     }
-    console.log("normalized tags", out);
+    // console.log("normalized tags", out);
     return out;
   }
 
@@ -534,8 +534,7 @@ export default class MediaHandler {
    */
   async handleAddMediaItem({ payload, actorUserId }) {
     const clean = this.sanitizeValidateFirst(payload, "handleAddMediaItem"); // FIRST LINE
-    // const clean = SafeUtils.sanitizeValidate(payload)
-    console.log("tesing after sanitization", clean);
+    // console.log("tesing after sanitization", clean);
     this.log?.info?.("handleAddMediaItem:start", { actorUserId });
 
     const { media_id } = await this.addRow({ ...clean, actorUserId });
@@ -553,6 +552,8 @@ export default class MediaHandler {
         actorUserId,
       });
     }
+    console.log("coperformers inside handleAddMediaItem", clean);
+
     if (Array.isArray(clean.coperformers)) {
       this.log?.info?.("handleAddMediaItem:branch:setCoPerformers", {
         mediaId: media_id,
@@ -929,11 +930,11 @@ export default class MediaHandler {
    *   [ ] ES upsert
    */
   async addRow(payload) {
-    console.log("payload inside the addRow", payload);
+    // console.log("payload inside the addRow", payload);
 
     try {
       const clean = this.sanitizeValidateFirst(payload, null);
-      console.log("✅ [addRow] sanitized payload:", clean);
+      // console.log("✅ [addRow] sanitized payload:", clean);
 
       this.log?.info?.("addRow:start", {
         owner_user_id: clean.owner_user_id,
@@ -1667,7 +1668,7 @@ export default class MediaHandler {
       count: Array.isArray(clean.performerIds) ? clean.performerIds.length : 0,
       actorUserId: payload.actorUserId,
     });
-
+    console.log("clean inside setCoPerformers", clean);
     return await this.db
       .withTransaction(async (client) => {
         // Use your DB wrapper to fetch single row
@@ -1678,7 +1679,8 @@ export default class MediaHandler {
        WHERE media_id=$1 AND is_deleted=false`,
           [clean.media_id]
         );
-        console.log("row inside setCoPerformers", row);
+        // console.log("cle;
+        // console.log("row inside setCoPerformers", row);
         if (!row) throw new NotFoundError("Media not found");
 
         if (clean.expectedVersion == null)
@@ -1701,6 +1703,7 @@ export default class MediaHandler {
           Array.isArray(clean.performerIds) &&
           clean.performerIds.length > 0
         ) {
+          console.log("Inserting co-performers:", clean.performerIds);
           const insertQuery =
             "INSERT INTO media_coperformers (media_id, performer_id) VALUES ($1, $2) ON CONFLICT DO NOTHING";
           for (const performerId of clean.performerIds) {
@@ -1783,14 +1786,15 @@ export default class MediaHandler {
    *   [ ] merge(if merge=true) or replace; audit; ES upsert
    */
   async setCustomMeta(payload) {
-    const clean = this.sanitizeValidateFirst(payload, null); // FIRST LINE
+    const clean = this.sanitizeValidateFirst(payload, null);
     this.log?.info?.("setCustomMeta:start", {
       mediaId: clean.media_id,
       merge: !!clean.merge,
       actorUserId: payload.actorUserId,
     });
+    // clean.merge = payload.merge === true; // force merge to match input
 
-    return await this.db.withTransaction(async (client) => {
+    const result = await this.db.withTransaction(async (client) => {
       const row = await client.getRow(
         `SELECT media_id, media_meta, version, updated_by_user_id FROM media WHERE media_id=$1 AND is_deleted=false`,
         [clean.media_id]
@@ -1824,14 +1828,21 @@ export default class MediaHandler {
         beforeJson: { version: row.version, media_meta: row.media_meta },
         afterJson: { version: newVersion, media_meta: next },
       });
+
+      return {
+        media_id: clean.media_id,
+        version: newVersion,
+        media_meta: next,
+      };
     });
 
-    await this.indexer.upsert(clean.media_id); // Implement elasticsearch here
+    await this.indexer.upsert(clean.media_id);
     this.log?.info?.("setCustomMeta:end", {
       mediaId: clean.media_id,
       actorUserId: payload.actorUserId,
     });
-    return { media_id: clean.media_id };
+
+    return result;
   }
 
   /**
@@ -1863,7 +1874,7 @@ export default class MediaHandler {
       const now = this.clock.now();
       const newVersion = (row.version || 0) + 1;
       await client.query(
-        `UPDATE media SET is_deleted=true, status='deleted', deleted_at=$2, last_updated=$2, updated_by_user_id=$3, version=$4 WHERE media_id=$1`,
+        `UPDATE media SET is_deleted=true, status='deleted', soft_delete=true, deleted_at=$2, last_updated=$2, updated_by_user_id=$3, version=$4 WHERE media_id=$1`,
         [
           clean.media_id,
           now,
@@ -1957,10 +1968,14 @@ export default class MediaHandler {
    *   [ ] select row; append relations if requested
    */
   async getById(payload) {
-    const clean = this.sanitizeValidateFirst(payload, null); // FIRST LINE
-    this.log?.info?.("getById:start", { mediaId: clean.media_id });
+  const clean = this.sanitizeValidateFirst(payload, null);
+  this.log?.info?.("getById:start", { mediaId: clean.media_id });
 
-    const row = await this.db.getRow(
+  console.log("clean inside getById", clean);
+
+  return await this.db.withTransaction(async (client) => {
+    // ✅ Use same transactional client for all queries
+    const row = await client.getRow(
       `SELECT * FROM media WHERE media_id=$1 AND is_deleted=false`,
       [clean.media_id]
     );
@@ -1968,15 +1983,16 @@ export default class MediaHandler {
 
     if (clean.includeTags) {
       row.tags = (
-        await this.db.getAll(
+        await client.getAll(
           `SELECT tag FROM media_tags WHERE media_id=$1 ORDER BY tag`,
           [clean.media_id]
         )
       ).map((r) => r.tag);
     }
+
     if (clean.includeCoPerformers) {
       row.coperformers = (
-        await this.db.getAll(
+        await client.getAll(
           `SELECT performer_id FROM media_coperformers WHERE media_id=$1 ORDER BY performer_id`,
           [clean.media_id]
         )
@@ -1985,7 +2001,9 @@ export default class MediaHandler {
 
     this.log?.info?.("getById:end", { mediaId: clean.media_id });
     return row;
-  }
+  });
+}
+
 
   /**
    * listByOwner({...})
@@ -1996,21 +2014,31 @@ export default class MediaHandler {
    *   [ ] _listWithFilters({ scope:'owner' })
    */
   async listByOwner(payload) {
-    const clean = this.sanitizeValidateFirst(payload, null); // FIRST LINE
-    this.log?.info?.("listByOwner:start", {
-      owner_user_id: clean.owner_user_id,
-    });
-    const res = await this._listWithFilters({
-      scope: "owner",
-      owner_user_id: clean.owner_user_id,
-      ...clean,
-    });
+  const clean = this.sanitizeValidateFirst(payload, null); // FIRST LINE
+  this.log?.info?.("listByOwner:start", {
+    owner_user_id: clean.owner_user_id,
+  });
+
+  return await this.db.withTransaction(async (client) => {
+    // ✅ Call _listWithFilters but use the same transactional client
+    const res = await this._listWithFilters.call(
+      { ...this, db: client }, // ✅ bind `this` with transactional client
+      {
+        scope: "owner",
+        owner_user_id: clean.owner_user_id,
+        ...clean,
+      }
+    );
+
     this.log?.info?.("listByOwner:end", {
       owner_user_id: clean.owner_user_id,
       count: res.items.length,
     });
+
     return res;
-  }
+  });
+}
+
 
   /**
    * listPublic({...})

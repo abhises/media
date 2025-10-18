@@ -21,7 +21,7 @@ export default async function testRemoveTag() {
   // ---------------------------------
   // ⚙️ Step 1: Ensure your media record exists in DB
   // ---------------------------------
-  const existingMediaId = "5d9f1333-bd81-4e20-a3eb-5840e9a68a60"; // replace with actual ID in your media table
+  const existingMediaId = "test123"; // replace with actual ID in your media table
   const expectedVersion = 4; // update according to your DB (must match `media.version` column)
 
   // ---------------------------------

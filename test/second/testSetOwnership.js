@@ -1,8 +1,8 @@
 import MediaService from "../../service/MediaHandler.js";
 import DB from "../../utils/DB.js"; // connects to your real DB
 
-export default async function testSetCoPerformers() {
-  console.log("Starting test for setCoPerformers...");
+export default async function testSetOwnership() {
+  console.log("Starting test for setOwnership...");
 
   // ✅ Real DB instance
   const db = new DB();
@@ -21,24 +21,24 @@ export default async function testSetCoPerformers() {
   // ---------------------------------
   // ⚙️ Step 1: Ensure a media record exists in your DB
   // ---------------------------------
-  const existingMediaId = "f4a881fc-440c-4887-a811-bf6c6a9ed70e"; // Replace with your actual media_id
-  const expectedVersion = 3; // must match the current version in your DB
+  const existingMediaId = "f4a881fc-440c-4887-a811-bf6c6a9ed70e"; // Replace with actual media_id
+  const expectedVersion = 1; // must match the current version in your DB
 
   // ---------------------------------
   // ⚙️ Step 2: Prepare payload
   // ---------------------------------
   const payload = {
     media_id: existingMediaId,
-    expectedVersion,               // must match DB version
-    performerIds: ["101", "102", "12jjs"], // example performer IDs to set
-    actorUserId: 42,
+    new_owner_user_id: "200",  // The new owner you want to set
+    expectedVersion,          // must match DB version
+    actorUserId: 42,          // user performing the action
   };
 
   // ---------------------------------
   // ⚙️ Step 3: Run the method
   // ---------------------------------
   try {
-    const result = await service.setCoPerformers(payload);
+    const result = await service.setOwnership(payload);
     console.log("✅ Test finished successfully:");
     console.log(result);
   } catch (err) {
@@ -50,4 +50,4 @@ export default async function testSetCoPerformers() {
 }
 
 // Run directly
-testSetCoPerformers();
+testSetOwnership();

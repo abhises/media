@@ -1,8 +1,9 @@
 import MediaService from "../../service/MediaHandler.js";
 import DB from "../../utils/DB.js"; // connects to your real DB
+import { NotFoundError } from "../../utils/Error_handler.js";
 
-export default async function testSetCoPerformers() {
-  console.log("Starting test for setCoPerformers...");
+export default async function testGetById() {
+  console.log("Starting test for getById...");
 
   // ✅ Real DB instance
   const db = new DB();
@@ -21,28 +22,30 @@ export default async function testSetCoPerformers() {
   // ---------------------------------
   // ⚙️ Step 1: Ensure a media record exists in your DB
   // ---------------------------------
-  const existingMediaId = "f4a881fc-440c-4887-a811-bf6c6a9ed70e"; // Replace with your actual media_id
-  const expectedVersion = 3; // must match the current version in your DB
+  const existingMediaId = "f4a881fc-440c-4887-a811-bf6c6a9ed70e"; // Replace with actual media_id
 
   // ---------------------------------
   // ⚙️ Step 2: Prepare payload
   // ---------------------------------
   const payload = {
     media_id: existingMediaId,
-    expectedVersion,               // must match DB version
-    performerIds: ["101", "102", "12jjs"], // example performer IDs to set
-    actorUserId: 42,
+    includeTags: true,          // fetch tags
+    includeCoPerformers: true,  // fetch co-performers
   };
 
   // ---------------------------------
   // ⚙️ Step 3: Run the method
   // ---------------------------------
   try {
-    const result = await service.setCoPerformers(payload);
+    const media = await service.getById(payload);
     console.log("✅ Test finished successfully:");
-    console.log(result);
+    console.log(media);
   } catch (err) {
-    console.error("❌ Test failed:", err);
+    if (err instanceof NotFoundError) {
+      console.error("❌ Test failed: Media not found");
+    } else {
+      console.error("❌ Test failed:", err);
+    }
   } finally {
     // ✅ Always close DB connection if available
     if (typeof db.close === "function") await db.close();
@@ -50,4 +53,4 @@ export default async function testSetCoPerformers() {
 }
 
 // Run directly
-testSetCoPerformers();
+testGetById();
