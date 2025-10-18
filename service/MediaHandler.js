@@ -1968,42 +1968,41 @@ export default class MediaHandler {
    *   [ ] select row; append relations if requested
    */
   async getById(payload) {
-  const clean = this.sanitizeValidateFirst(payload, null);
-  this.log?.info?.("getById:start", { mediaId: clean.media_id });
+    const clean = this.sanitizeValidateFirst(payload, null);
+    this.log?.info?.("getById:start", { mediaId: clean.media_id });
 
-  console.log("clean inside getById", clean);
+    console.log("clean inside getById", clean);
 
-  return await this.db.withTransaction(async (client) => {
-    // ✅ Use same transactional client for all queries
-    const row = await client.getRow(
-      `SELECT * FROM media WHERE media_id=$1 AND is_deleted=false`,
-      [clean.media_id]
-    );
-    if (!row) throw new NotFoundError("Media not found");
+    return await this.db.withTransaction(async (client) => {
+      // ✅ Use same transactional client for all queries
+      const row = await client.getRow(
+        `SELECT * FROM media WHERE media_id=$1 AND is_deleted=false`,
+        [clean.media_id]
+      );
+      if (!row) throw new NotFoundError("Media not found");
 
-    if (clean.includeTags) {
-      row.tags = (
-        await client.getAll(
-          `SELECT tag FROM media_tags WHERE media_id=$1 ORDER BY tag`,
-          [clean.media_id]
-        )
-      ).map((r) => r.tag);
-    }
+      if (clean.includeTags) {
+        row.tags = (
+          await client.getAll(
+            `SELECT tag FROM media_tags WHERE media_id=$1 ORDER BY tag`,
+            [clean.media_id]
+          )
+        ).map((r) => r.tag);
+      }
 
-    if (clean.includeCoPerformers) {
-      row.coperformers = (
-        await client.getAll(
-          `SELECT performer_id FROM media_coperformers WHERE media_id=$1 ORDER BY performer_id`,
-          [clean.media_id]
-        )
-      ).map((r) => r.performer_id);
-    }
+      if (clean.includeCoPerformers) {
+        row.coperformers = (
+          await client.getAll(
+            `SELECT performer_id FROM media_coperformers WHERE media_id=$1 ORDER BY performer_id`,
+            [clean.media_id]
+          )
+        ).map((r) => r.performer_id);
+      }
 
-    this.log?.info?.("getById:end", { mediaId: clean.media_id });
-    return row;
-  });
-}
-
+      this.log?.info?.("getById:end", { mediaId: clean.media_id });
+      return row;
+    });
+  }
 
   /**
    * listByOwner({...})
@@ -2014,31 +2013,30 @@ export default class MediaHandler {
    *   [ ] _listWithFilters({ scope:'owner' })
    */
   async listByOwner(payload) {
-  const clean = this.sanitizeValidateFirst(payload, null); // FIRST LINE
-  this.log?.info?.("listByOwner:start", {
-    owner_user_id: clean.owner_user_id,
-  });
-
-  return await this.db.withTransaction(async (client) => {
-    // ✅ Call _listWithFilters but use the same transactional client
-    const res = await this._listWithFilters.call(
-      { ...this, db: client }, // ✅ bind `this` with transactional client
-      {
-        scope: "owner",
-        owner_user_id: clean.owner_user_id,
-        ...clean,
-      }
-    );
-
-    this.log?.info?.("listByOwner:end", {
+    const clean = this.sanitizeValidateFirst(payload, null); // FIRST LINE
+    this.log?.info?.("listByOwner:start", {
       owner_user_id: clean.owner_user_id,
-      count: res.items.length,
     });
 
-    return res;
-  });
-}
+    return await this.db.withTransaction(async (client) => {
+      // ✅ Call _listWithFilters but use the same transactional client
+      const res = await this._listWithFilters.call(
+        { ...this, db: client }, // ✅ bind `this` with transactional client
+        {
+          scope: "owner",
+          owner_user_id: clean.owner_user_id,
+          ...clean,
+        }
+      );
 
+      this.log?.info?.("listByOwner:end", {
+        owner_user_id: clean.owner_user_id,
+        count: res.items.length,
+      });
+
+      return res;
+    });
+  }
 
   /**
    * listPublic({...})
@@ -2051,9 +2049,20 @@ export default class MediaHandler {
   async listPublic(payload) {
     const clean = this.sanitizeValidateFirst(payload, null); // FIRST LINE
     this.log?.info?.("listPublic:start", {});
-    const res = await this._listWithFilters({ scope: "public", ...clean });
-    this.log?.info?.("listPublic:end", { count: res.items.length });
-    return res;
+
+    return await this.db.withTransaction(async (client) => {
+      // ✅ Call _listWithFilters but use the transactional client
+      const res = await this._listWithFilters.call(
+        { ...this, db: client }, // ✅ bind `this` with transactional client
+        {
+          scope: "public",
+          ...clean,
+        }
+      );
+
+      this.log?.info?.("listPublic:end", { count: res.items.length });
+      return res;
+    });
   }
 
   /**
@@ -2067,9 +2076,20 @@ export default class MediaHandler {
   async listFeatured(payload) {
     const clean = this.sanitizeValidateFirst(payload, null); // FIRST LINE
     this.log?.info?.("listFeatured:start", {});
-    const res = await this._listWithFilters({ scope: "featured", ...clean });
-    this.log?.info?.("listFeatured:end", { count: res.items.length });
-    return res;
+
+    return await this.db.withTransaction(async (client) => {
+      // ✅ Use the transactional client for all queries
+      const res = await this._listWithFilters.call(
+        { ...this, db: client }, // ✅ bind `this` with transactional client
+        {
+          scope: "featured",
+          ...clean,
+        }
+      );
+
+      this.log?.info?.("listFeatured:end", { count: res.items.length });
+      return res;
+    });
   }
 
   /**
@@ -2083,9 +2103,20 @@ export default class MediaHandler {
   async listComingSoon(payload) {
     const clean = this.sanitizeValidateFirst(payload, null); // FIRST LINE
     this.log?.info?.("listComingSoon:start", {});
-    const res = await this._listWithFilters({ scope: "coming_soon", ...clean });
-    this.log?.info?.("listComingSoon:end", { count: res.items.length });
-    return res;
+
+    return await this.db.withTransaction(async (client) => {
+      // ✅ Use the transactional client for all queries
+      const res = await this._listWithFilters.call(
+        { ...this, db: client }, // ✅ bind `this` with transactional client
+        {
+          scope: "coming_soon",
+          ...clean,
+        }
+      );
+
+      this.log?.info?.("listComingSoon:end", { count: res.items.length });
+      return res;
+    });
   }
 
   /**
@@ -2096,20 +2127,37 @@ export default class MediaHandler {
    *   [ ] sanitizeValidateFirst
    *   [ ] _listWithFilters({ scope:'tag' })
    */
-  async listByTag(payload) {
-    const clean = this.sanitizeValidateFirst(payload, null); // FIRST LINE
-    this.log?.info?.("listByTag:start", { tag: clean.tag });
-    const res = await this._listWithFilters({
-      scope: "tag",
-      tag: clean.tag,
-      ...clean,
-    });
+async listByTag(payload) {
+  const clean = this.sanitizeValidateFirst(payload, null); // FIRST LINE
+  this.log?.info?.("listByTag:start", { tags: clean.tags });
+
+  return await this.db.withTransaction(async (client) => {
+    let allItems = [];
+
+    for (const tag of clean.tags) {
+      const res = await this._listWithFilters.call(
+        { ...this, db: client }, // ✅ bind `this` with transactional client
+        {
+          scope: "tag",
+          tag, // single tag for this iteration
+          ...clean,
+        }
+      );
+
+      if (res.items && res.items.length) {
+        allItems = allItems.concat(res.items); // merge results
+      }
+    }
+
     this.log?.info?.("listByTag:end", {
-      tag: clean.tag,
-      count: res.items.length,
+      tags: clean.tags,
+      count: allItems.length,
     });
-    return res;
-  }
+
+    return { items: allItems, nextCursor: null };
+  });
+}
+
 
   /**
    * search({...})
@@ -2119,14 +2167,14 @@ export default class MediaHandler {
    *   [ ] sanitizeValidateFirst
    *   [ ] try ES; fallback: DB
    */
-  async search(payload) {
-    const clean = this.sanitizeValidateFirst(payload, null); // FIRST LINE
-    const q = (clean.query || "").trim();
-    this.log?.info?.("search:start", { query: q });
+ async search(payload) {
+  const clean = this.sanitizeValidateFirst(payload, null); // FIRST LINE
+  const q = (clean.query || "").trim();
+  this.log?.info?.("search:start", { query: q });
 
-    // Primary: // Implement elasticsearch here
-    // Fallback:
-    const items = await this.db.getAll(
+  return await this.db.withTransaction(async (client) => {
+    // ✅ Use transactional client for all queries
+    const items = await client.getAll(
       `SELECT * FROM media
        WHERE is_deleted=false
          AND status='published'
@@ -2138,7 +2186,9 @@ export default class MediaHandler {
 
     this.log?.info?.("search:end", { query: q, count: items.length });
     return { items, nextCursor: null };
-  }
+  });
+}
+
 
   /**
    * reindexSearch({...})

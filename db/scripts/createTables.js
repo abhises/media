@@ -116,29 +116,21 @@ async function createTables() {
         title TEXT NOT NULL,
         description TEXT,
         visibility VARCHAR(20) DEFAULT 'private',
-        poster_url TEXT CHECK (poster_url LIKE 'https%'),
+        poster_url TEXT CHECK (poster_url ~* '^https?://'),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
       `,
       `
       CREATE TABLE IF NOT EXISTS collection_media (
-        id SERIAL PRIMARY KEY,
-        collection_id VARCHAR(100) NOT NULL,
-        media_id VARCHAR(100) NOT NULL,
-        position INTEGER DEFAULT 0,
-        FOREIGN KEY (collection_id) REFERENCES collections (collection_id) ON DELETE CASCADE,
-        FOREIGN KEY (media_id) REFERENCES media (media_id) ON DELETE CASCADE
-      );
-      `,
-      `
-       CREATE TABLE IF NOT EXISTS collection_media (
-        id SERIAL PRIMARY KEY,
-        collection_id VARCHAR(72) NOT NULL,
-        media_id VARCHAR(72) NOT NULL,
-        position INTEGER DEFAULT 0 CHECK (position >= 0),
-        FOREIGN KEY (collection_id) REFERENCES collections (collection_id) ON DELETE CASCADE,
-        FOREIGN KEY (media_id) REFERENCES media (media_id) ON DELETE CASCADE
-      );
+      id SERIAL PRIMARY KEY,
+      collection_id VARCHAR(100) NOT NULL,
+      media_id VARCHAR(100) NOT NULL,
+      position INTEGER DEFAULT 0,
+      FOREIGN KEY (collection_id) REFERENCES collections (collection_id) ON DELETE CASCADE,
+      FOREIGN KEY (media_id) REFERENCES media (media_id) ON DELETE CASCADE,
+      UNIQUE (collection_id, media_id)  
+    );
+
       `,
       `
       CREATE TABLE IF NOT EXISTS media_coperformers (

@@ -1,4 +1,3 @@
-import { dot } from "node:test/reporters";
 import pkg from "pg";
 import dotenv from "dotenv";
 const { Pool } = pkg;
