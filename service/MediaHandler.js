@@ -2127,37 +2127,36 @@ export default class MediaHandler {
    *   [ ] sanitizeValidateFirst
    *   [ ] _listWithFilters({ scope:'tag' })
    */
-async listByTag(payload) {
-  const clean = this.sanitizeValidateFirst(payload, null); // FIRST LINE
-  this.log?.info?.("listByTag:start", { tags: clean.tags });
+  async listByTag(payload) {
+    const clean = this.sanitizeValidateFirst(payload, null); // FIRST LINE
+    this.log?.info?.("listByTag:start", { tags: clean.tags });
 
-  return await this.db.withTransaction(async (client) => {
-    let allItems = [];
+    return await this.db.withTransaction(async (client) => {
+      let allItems = [];
 
-    for (const tag of clean.tags) {
-      const res = await this._listWithFilters.call(
-        { ...this, db: client }, // ✅ bind `this` with transactional client
-        {
-          scope: "tag",
-          tag, // single tag for this iteration
-          ...clean,
+      for (const tag of clean.tags) {
+        const res = await this._listWithFilters.call(
+          { ...this, db: client }, // ✅ bind `this` with transactional client
+          {
+            scope: "tag",
+            tag, // single tag for this iteration
+            ...clean,
+          }
+        );
+
+        if (res.items && res.items.length) {
+          allItems = allItems.concat(res.items); // merge results
         }
-      );
-
-      if (res.items && res.items.length) {
-        allItems = allItems.concat(res.items); // merge results
       }
-    }
 
-    this.log?.info?.("listByTag:end", {
-      tags: clean.tags,
-      count: allItems.length,
+      this.log?.info?.("listByTag:end", {
+        tags: clean.tags,
+        count: allItems.length,
+      });
+
+      return { items: allItems, nextCursor: null };
     });
-
-    return { items: allItems, nextCursor: null };
-  });
-}
-
+  }
 
   /**
    * search({...})
@@ -2167,28 +2166,27 @@ async listByTag(payload) {
    *   [ ] sanitizeValidateFirst
    *   [ ] try ES; fallback: DB
    */
- async search(payload) {
-  const clean = this.sanitizeValidateFirst(payload, null); // FIRST LINE
-  const q = (clean.query || "").trim();
-  this.log?.info?.("search:start", { query: q });
+  async search(payload) {
+    const clean = this.sanitizeValidateFirst(payload, null); // FIRST LINE
+    const q = (clean.query || "").trim();
+    this.log?.info?.("search:start", { query: q });
 
-  return await this.db.withTransaction(async (client) => {
-    // ✅ Use transactional client for all queries
-    const items = await client.getAll(
-      `SELECT * FROM media
+    return await this.db.withTransaction(async (client) => {
+      // ✅ Use transactional client for all queries
+      const items = await client.getAll(
+        `SELECT * FROM media
        WHERE is_deleted=false
          AND status='published'
          AND (title ILIKE $1 OR description ILIKE $1)
        ORDER BY COALESCE(publish_date, entry_date) DESC, media_id DESC
        LIMIT 101`,
-      [q ? `%${q}%` : "%%"]
-    );
+        [q ? `%${q}%` : "%%"]
+      );
 
-    this.log?.info?.("search:end", { query: q, count: items.length });
-    return { items, nextCursor: null };
-  });
-}
-
+      this.log?.info?.("search:end", { query: q, count: items.length });
+      return { items, nextCursor: null };
+    });
+  }
 
   /**
    * reindexSearch({...})
@@ -2354,27 +2352,33 @@ async listByTag(payload) {
   async listCollection(payload) {
     const clean = this.sanitizeValidateFirst(payload, null); // FIRST LINE
     const limit = Math.min(clean.limit || 24, 100);
+
     this.log?.info?.("listCollection:start", {
       collection_id: clean.collection_id,
       limit,
     });
 
-    const items = await this.db.getAll(
-      `SELECT m.* FROM collection_media cm
+    // ✅ Use transactional client
+    return await this.db.withTransaction(async (client) => {
+      const items = await client.getAll(
+        `SELECT m.* FROM collection_media cm
        JOIN media m ON m.media_id = cm.media_id
        WHERE cm.collection_id=$1 AND m.is_deleted=false
        ORDER BY COALESCE(cm.position,0) DESC, m.media_id DESC
        LIMIT $2`,
-      [clean.collection_id, limit + 1]
-    );
-    const hasMore = items.length > limit;
-    if (hasMore) items.pop();
+        [clean.collection_id, limit + 1]
+      );
 
-    this.log?.info?.("listCollection:end", {
-      collection_id: clean.collection_id,
-      count: items.length,
+      const hasMore = items.length > limit;
+      if (hasMore) items.pop();
+
+      this.log?.info?.("listCollection:end", {
+        collection_id: clean.collection_id,
+        count: items.length,
+      });
+
+      return { items, nextCursor: null };
     });
-    return { items, nextCursor: null };
   }
 
   /**

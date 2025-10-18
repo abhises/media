@@ -25,6 +25,7 @@
   "scripts": {
     "test": "node test/first/index.js",
     "test:second": "node test/second/index.js",
+    "test:third": "node test/third/index.js",
     "table:create": "node db/scripts/createTables.js",
     "table:drop": "node db/scripts/deleteTables.js"
   },

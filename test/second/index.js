@@ -12,7 +12,9 @@
 // import testListByTag from "./testListByTag.js";
 // import testSearch from "./testSearch.js";
 // import testCreateCollection from "./testCreateCollection.js"; 
-import testAddToCollection from "./testAddToCollection.js"; 
+// import testAddToCollection from "./testAddToCollection.js"; 
+// import testRemoveFromCollection from "./testRemoveFromCollection.js";
+import testListCollection from "./testListCollection.js";
 
 export {
   // testAddTag,
@@ -29,5 +31,7 @@ export {
 // testListByTag
 // testSearch
 // testCreateCollection
-testAddToCollection
+// testAddToCollection
+// testRemoveFromCollection
+  testListCollection
 };
