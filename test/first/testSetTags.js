@@ -22,7 +22,7 @@ export default async function testSetTags() {
   // ⚙️ Step 1: Ensure a media record exists in DB
   // (You can check the media table to confirm)
   // ---------------------------------
-  const existingMediaId = "5d9f1333-bd81-4e20-a3eb-5840e9a68a60"; // Replace with your real media_id
+  const existingMediaId = "test123"; // Replace with your real media_id
 
   // ---------------------------------
   // ⚙️ Step 2: Prepare payload

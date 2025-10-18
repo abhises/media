@@ -18,7 +18,7 @@ export default async function testSetFeatured() {
 
   // ✅ Step 1: Ensure a media item exists in DB
   // Replace with a real ID if testing against an actual DB
-  const existingMediaId = "5d9f1333-bd81-4e20-a3eb-5840e9a68a60";
+  const existingMediaId = "test123";
 
   // ✅ Step 2: Prepare payload
   const payload = {

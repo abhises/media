@@ -19,7 +19,7 @@ export default async function handleAddMediaItem() {
 
   // Test payload
   const payload = {
-    tags: ["tag1"],
+    tags: ["rag1", "rag2"],
     coperformers: [1, 2],
     asset_url: "http://asset.url",
     poster_url: "http://poster.url",

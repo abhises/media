@@ -19,7 +19,7 @@ export default async function handleUpdateMediaItem() {
 
   // Test payload
   const payload = {
-    media_id: "3d33b6c5-9497-435c-b410-f694f9534746", // existing media ID to update
+    media_id: "test123", // existing media ID to update
     tags: ["tag1"],
     coperformers: [1, 2],
     asset_url: "http://asset.url",

@@ -22,7 +22,7 @@ export default async function testAttachPrimaryAsset() {
   // ⚙️ Step 1: Ensure a media item exists in DB
   // (You can reuse handleAddMediaItem or insert one manually)
   // ---------------------------------
-  const existingMediaId = "c8239aea-5a4a-4464-9f73-446d45e2f114"; // Replace with a real existing media_id
+  const existingMediaId = "test123"; // Replace with a real existing media_id
 
   // ---------------------------------
   // ⚙️ Step 2: Prepare payload for attaching primary asset

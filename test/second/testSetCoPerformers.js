@@ -21,7 +21,7 @@ export default async function testSetCoPerformers() {
   // ---------------------------------
   // ⚙️ Step 1: Ensure a media record exists in your DB
   // ---------------------------------
-  const existingMediaId = "5d9f1333-bd81-4e20-a3eb-5840e9a68a60"; // Replace with your actual media_id
+  const existingMediaId = "test123"; // Replace with your actual media_id
   const expectedVersion = 3; // must match the current version in your DB
 
   // ---------------------------------
