@@ -2654,8 +2654,8 @@ export default class MediaHandler {
   expectVersion(row, expectedVersion) {
     if (!Number.isInteger(expectedVersion))
       throw new ConflictError("expectedVersion required");
-    // if ((row.version || 0) !== expectedVersion)
-    //   throw new ConflictError("Version mismatch");
+    if ((row.version || 0) !== expectedVersion)
+      throw new ConflictError("Version mismatch");
   }
 
   /**
